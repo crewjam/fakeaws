@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 )
 
 type FakeDynamoDB struct {
@@ -26,9 +27,10 @@ func New() (*FakeDynamoDB, error) {
 	f := FakeDynamoDB{Verbose: true}
 	f.Port = randomPort()
 	f.Config = &aws.Config{
-		Endpoint:   aws.String(fmt.Sprintf("localhost:%d", f.Port)),
-		Region:     aws.String("fake-region"),
-		DisableSSL: aws.Bool(true),
+		Credentials: credentials.NewStaticCredentials("AKIAXXXXXXXXXXXXXXXX", "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB", ""),
+		Endpoint:    aws.String(fmt.Sprintf("localhost:%d", f.Port)),
+		Region:      aws.String("fake-region"),
+		DisableSSL:  aws.Bool(true),
 	}
 
 	javaBin, err := findJava()

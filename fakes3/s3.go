@@ -2,6 +2,7 @@ package fakes3
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/goamz/goamz/s3/s3test"
 )
 
@@ -18,6 +19,7 @@ func New() (*FakeS3, error) {
 		return nil, err
 	}
 	f.Config = &aws.Config{
+		Credentials:      credentials.NewStaticCredentials("AKIAXXXXXXXXXXXXXXXX", "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB", ""),
 		Endpoint:         aws.String(f.Server.URL()),
 		Region:           aws.String("fake-region"),
 		DisableSSL:       aws.Bool(true),

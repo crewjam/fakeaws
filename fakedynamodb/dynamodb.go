@@ -5,7 +5,6 @@ import (
 	"compress/gzip"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -84,7 +83,6 @@ func findServer() (string, error) {
 const serverURL = "http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz"
 
 func fetchServer(path string) error {
-	log.Printf("fetching server from %s", serverURL)
 	resp, err := http.Get(serverURL)
 	if err != nil {
 		return err
@@ -106,18 +104,14 @@ func fetchServer(path string) error {
 		if err != nil {
 			return err
 		}
-		log.Printf("%s: %04o", tarHeader.Name, tarHeader.Mode)
-		if os.FileMode(tarHeader.Mode).IsDir() {
-			log.Printf("%s: %04o isdir", tarHeader.Name, tarHeader.Mode)
-			continue
-		}
 
+		// TODO(ross): investivate why `os.FileMode(tarHeader.Mode).IsDir()` does
+		//   not work here.
 		if tarHeader.Mode&040000 != 0 {
-			log.Printf("%s: %04o isdir2", tarHeader.Name, tarHeader.Mode)
 			continue
 		}
-		outPath := filepath.Join(path, tarHeader.Name)
 
+		outPath := filepath.Join(path, tarHeader.Name)
 		os.MkdirAll(filepath.Dir(outPath), 0755)
 		outFile, err := os.Create(outPath)
 		if err != nil {

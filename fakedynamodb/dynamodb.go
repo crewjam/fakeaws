@@ -23,7 +23,7 @@ type FakeDynamoDB struct {
 }
 
 func New() (*FakeDynamoDB, error) {
-	f := FakeDynamoDB{Verbose: true}
+	f := FakeDynamoDB{Verbose: false}
 	f.Port = randomPort()
 	f.Config = &aws.Config{
 		Credentials: credentials.NewStaticCredentials("AKIAXXXXXXXXXXXXXXXX", "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB", ""),

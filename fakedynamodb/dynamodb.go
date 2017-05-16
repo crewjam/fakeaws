@@ -15,6 +15,38 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 )
 
+type Options struct {
+	Verbose               bool
+	Port                  int
+	JavaBin               string
+	ServerPath, ServerURL string
+}
+
+func Defaults() (*Options, error) {
+	o := &Options{
+		Verbose: false,
+		Port:    randomPort(),
+		ServerPath: filepath.Join(os.Getenv("GOPATH"), "src",
+			"github.com", "crewjam", "fakeaws", "fakedynamodb", "libexec"),
+		ServerURL: "http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz",
+	}
+
+	javaBin, err := findJava()
+	if err != nil {
+		return nil, err
+	}
+	o.JavaBin = javaBin
+
+	if _, err := os.Stat(filepath.Join(o.ServerPath, "DynamoDBLocal.jar")); err != nil && os.IsNotExist(err) {
+		err = fetchServer(o.ServerURL, o.ServerPath)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return o, nil
+}
+
 type FakeDynamoDB struct {
 	Port    int
 	Verbose bool
@@ -23,35 +55,29 @@ type FakeDynamoDB struct {
 }
 
 func New() (*FakeDynamoDB, error) {
-	f := FakeDynamoDB{Verbose: false}
-	f.Port = randomPort()
+	options, err := Defaults()
+	if err != nil {
+		return nil, err
+	}
+	return NewWithOptions(options)
+}
+
+func NewWithOptions(options *Options) (*FakeDynamoDB, error) {
+	f := FakeDynamoDB{Verbose: options.Verbose}
+	f.Port = options.Port
 	f.Config = &aws.Config{
 		Credentials: credentials.NewStaticCredentials("AKIAXXXXXXXXXXXXXXXX", "QUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB", ""),
 		Endpoint:    aws.String(fmt.Sprintf("localhost:%d", f.Port)),
 		Region:      aws.String("fake-region"),
 		DisableSSL:  aws.Bool(true),
 	}
-
-	javaBin, err := findJava()
-	if err != nil {
-		return nil, err
-	}
-
-	serverPath, err := findServer()
-	if err != nil && os.IsNotExist(err) {
-		err = fetchServer(serverPath)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	f.Cmd = exec.Command(javaBin, "-Djava.library.path=./DynamoDBLocal_lib",
+	f.Cmd = exec.Command(options.JavaBin, "-Djava.library.path=./DynamoDBLocal_lib",
 		"-jar", "DynamoDBLocal.jar", "-inMemory", "-port", fmt.Sprintf("%d", f.Port))
 	if f.Verbose {
 		f.Cmd.Stdout = os.Stdout
 		f.Cmd.Stderr = os.Stderr
 	}
-	f.Cmd.Dir = serverPath
+	f.Cmd.Dir = options.ServerPath
 	if err := f.Cmd.Start(); err != nil {
 		return nil, err
 	}
@@ -73,17 +99,8 @@ func randomPort() int {
 	return l.Addr().(*net.TCPAddr).Port
 }
 
-func findServer() (string, error) {
-	rv := filepath.Join(os.Getenv("GOPATH"), "src",
-		"github.com", "crewjam", "fakeaws", "fakedynamodb", "libexec")
-	_, err := os.Stat(filepath.Join(rv, "DynamoDBLocal.jar"))
-	return rv, err
-}
-
-const serverURL = "http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz"
-
-func fetchServer(path string) error {
-	resp, err := http.Get(serverURL)
+func fetchServer(url, path string) error {
+	resp, err := http.Get(url)
 	if err != nil {
 		return err
 	}

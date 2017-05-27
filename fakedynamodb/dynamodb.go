@@ -22,29 +22,14 @@ type Options struct {
 	ServerPath, ServerURL string
 }
 
-func Defaults() (*Options, error) {
-	o := &Options{
+func Defaults() *Options {
+	return &Options{
 		Verbose: false,
 		Port:    randomPort(),
 		ServerPath: filepath.Join(os.Getenv("GOPATH"), "src",
 			"github.com", "crewjam", "fakeaws", "fakedynamodb", "libexec"),
 		ServerURL: "http://dynamodb-local.s3-website-us-west-2.amazonaws.com/dynamodb_local_latest.tar.gz",
 	}
-
-	javaBin, err := findJava()
-	if err != nil {
-		return nil, err
-	}
-	o.JavaBin = javaBin
-
-	if _, err := os.Stat(filepath.Join(o.ServerPath, "DynamoDBLocal.jar")); err != nil && os.IsNotExist(err) {
-		err = fetchServer(o.ServerURL, o.ServerPath)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return o, nil
 }
 
 type FakeDynamoDB struct {
@@ -55,14 +40,23 @@ type FakeDynamoDB struct {
 }
 
 func New() (*FakeDynamoDB, error) {
-	options, err := Defaults()
-	if err != nil {
-		return nil, err
-	}
-	return NewWithOptions(options)
+	return NewWithOptions(Defaults())
 }
 
 func NewWithOptions(options *Options) (*FakeDynamoDB, error) {
+	if len(options.JavaBin) == 0 {
+		javaBin, err := findJava()
+		if err != nil {
+			return nil, err
+		}
+		options.JavaBin = javaBin
+	}
+	if _, err := os.Stat(filepath.Join(options.ServerPath, "DynamoDBLocal.jar")); err != nil && os.IsNotExist(err) {
+		err = fetchServer(options.ServerURL, options.ServerPath)
+		if err != nil {
+			return nil, err
+		}
+	}
 	f := FakeDynamoDB{Verbose: options.Verbose}
 	f.Port = options.Port
 	f.Config = &aws.Config{
